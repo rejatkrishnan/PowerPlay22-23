@@ -19,8 +19,11 @@ import com.acmerobotics.roadrunner.trajectory.constraints.TrajectoryAcceleration
 import com.acmerobotics.roadrunner.trajectory.constraints.TrajectoryVelocityConstraint;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.lynx.LynxModule;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
@@ -50,12 +53,13 @@ import static org.firstinspires.ftc.teamcode.drive.DriveConstants.kV;
 /*
  * Simple mecanum drive hardware implementation for REV hardware.
  */
+
 @Config
 public class SampleMecanumDrive extends MecanumDrive {
-    public static PIDCoefficients TRANSLATIONAL_PID = new PIDCoefficients(0, 0, 0);
-    public static PIDCoefficients HEADING_PID = new PIDCoefficients(0, 0, 0);
+    public static PIDCoefficients TRANSLATIONAL_PID = new PIDCoefficients(7, 0, 0.4);
+    public static PIDCoefficients HEADING_PID = new PIDCoefficients(8, 0, 0);
 
-    public static double LATERAL_MULTIPLIER = 1;
+    public static double LATERAL_MULTIPLIER = 2.75;
 
     public static double VX_WEIGHT = 1;
     public static double VY_WEIGHT = 1;
@@ -68,7 +72,9 @@ public class SampleMecanumDrive extends MecanumDrive {
 
     private TrajectoryFollower follower;
 
-    private DcMotorEx leftFront, leftRear, rightRear, rightFront;
+    private DcMotor lift;
+
+    private DcMotorEx frontLeft, backLeft, backRight, frontRight;
     private List<DcMotorEx> motors;
 
     private BNO055IMU imu;
@@ -88,40 +94,15 @@ public class SampleMecanumDrive extends MecanumDrive {
             module.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
         }
 
-        // TODO: adjust the names of the following hardware devices to match your configuration
-        imu = hardwareMap.get(BNO055IMU.class, "imu");
-        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
-        parameters.angleUnit = BNO055IMU.AngleUnit.RADIANS;
-        imu.initialize(parameters);
 
-        // TODO: If the hub containing the IMU you are using is mounted so that the "REV" logo does
-        // not face up, remap the IMU axes so that the z-axis points upward (normal to the floor.)
-        //
-        //             | +Z axis
-        //             |
-        //             |
-        //             |
-        //      _______|_____________     +Y axis
-        //     /       |_____________/|__________
-        //    /   REV / EXPANSION   //
-        //   /       / HUB         //
-        //  /_______/_____________//
-        // |_______/_____________|/
-        //        /
-        //       / +X axis
-        //
-        // This diagram is derived from the axes in section 3.4 https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bno055-ds000.pdf
-        // and the placement of the dot/orientation from https://docs.revrobotics.com/rev-control-system/control-system-overview/dimensions#imu-location
-        //
-        // For example, if +Y in this diagram faces downwards, you would use AxisDirection.NEG_Y.
-        // BNO055IMUUtil.remapZAxis(imu, AxisDirection.NEG_Y);
 
-        leftFront = hardwareMap.get(DcMotorEx.class, "leftFront");
-        leftRear = hardwareMap.get(DcMotorEx.class, "leftRear");
-        rightRear = hardwareMap.get(DcMotorEx.class, "rightRear");
-        rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
+        frontRight = hardwareMap.get(DcMotorEx.class, "bl");
+        frontLeft = hardwareMap.get(DcMotorEx.class, "fl");
+        backLeft = hardwareMap.get(DcMotorEx.class, "fr");
+        backRight = hardwareMap.get(DcMotorEx.class, "br");
 
-        motors = Arrays.asList(leftFront, leftRear, rightRear, rightFront);
+
+        motors = Arrays.asList(frontRight, frontLeft, backRight, backLeft);
 
         for (DcMotorEx motor : motors) {
             MotorConfigurationType motorConfigurationType = motor.getMotorType().clone();
@@ -141,8 +122,14 @@ public class SampleMecanumDrive extends MecanumDrive {
 
         // TODO: reverse any motors using DcMotor.setDirection()
 
+        frontRight.setDirection(DcMotorSimple.Direction.REVERSE);
+        frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+
+
         // TODO: if desired, use setLocalizer() to change the localization method
         // for instance, setLocalizer(new ThreeTrackingWheelLocalizer(...));
+
+        setLocalizer(new StandardTrackingWheelLocalizer(hardwareMap));
 
         trajectorySequenceRunner = new TrajectorySequenceRunner(follower, HEADING_PID);
     }
@@ -242,7 +229,9 @@ public class SampleMecanumDrive extends MecanumDrive {
         for (DcMotorEx motor : motors) {
             motor.setPIDFCoefficients(runMode, compensatedCoefficients);
         }
+
     }
+
 
     public void setWeightedDrivePower(Pose2d drivePower) {
         Pose2d vel = drivePower;
@@ -285,16 +274,17 @@ public class SampleMecanumDrive extends MecanumDrive {
 
     @Override
     public void setMotorPowers(double v, double v1, double v2, double v3) {
-        leftFront.setPower(v);
-        leftRear.setPower(v1);
-        rightRear.setPower(v2);
-        rightFront.setPower(v3);
+        frontLeft.setPower(v);
+        frontRight.setPower(v1);
+        backRight.setPower(v2);
+        backLeft.setPower(v3);
     }
 
     @Override
     public double getRawExternalHeading() {
-        return imu.getAngularOrientation().firstAngle;
+        return 0;
     }
+
 
     @Override
     public Double getExternalHeadingVelocity() {
@@ -311,4 +301,5 @@ public class SampleMecanumDrive extends MecanumDrive {
     public static TrajectoryAccelerationConstraint getAccelerationConstraint(double maxAccel) {
         return new ProfileAccelerationConstraint(maxAccel);
     }
+
 }
