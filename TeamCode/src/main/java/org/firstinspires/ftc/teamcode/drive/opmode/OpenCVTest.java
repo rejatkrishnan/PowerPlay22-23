@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.teamcode.trajectorysequence.TrajectorySequenceBuilder;
 import org.opencv.core.Scalar;
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
@@ -84,6 +85,19 @@ public class OpenCVTest extends LinearOpMode {
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
+        SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
+
+        Pose2d startPose1 = new Pose2d(-39,65.6, Math.toRadians(-90));
+
+
+        drive.setPoseEstimate(startPose1);
+
+        TrajectorySequence traj1 = drive.trajectorySequenceBuilder(startPose1)
+                .strafeRight(70)
+                .build();
+
+
+
         // OpenCV webcam
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"), cameraMonitorViewId);
@@ -115,7 +129,11 @@ public class OpenCVTest extends LinearOpMode {
         telemetry.update();
         waitForStart();
 
+        drive.followTrajectorySequence(traj1);
+
         while (opModeIsActive()) {
+
+
             myPipeline.configureBorders(borderLeftX, borderRightX, borderTopY, borderBottomY);
             if (myPipeline.error) {
                 telemetry.addData("Exception: ", myPipeline.debug);
@@ -126,109 +144,77 @@ public class OpenCVTest extends LinearOpMode {
             telemetry.addData("RectArea: ", myPipeline.getRectArea());
             telemetry.update();
 
+
+
             if (myPipeline.getRectArea() > 2000) {
                 if (myPipeline.getRectMidpointX() > 290) {
                     AUTONOMOUS_C();
-                    String camPosition = "";
-                    telemetry.addData(camPosition, "");
-                    while (camPosition != "B") {
-                        camPosition = findPole(myPipeline);
-                        telemetry.update();
-                    }
-                    if (myPipeline.getRectMidpointX() > 260) {
-                        telemetry.addData(camPosition, "");
-                        while (camPosition != "B") {
-                            camPosition = findPole(myPipeline);
-                            telemetry.update();
-                            AUTONOMOUS_B();
-                        }
-                    } else{
-                            AUTONOMOUS_A();
-                            telemetry.addData(camPosition, "");
-                            while (camPosition != "B") {
-                                camPosition = findPole(myPipeline);
-                                telemetry.update();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        public void testing (ContourPipeline myPipeline){
-            if (lowerruntime + 0.05 < getRuntime()) {
-                CrLowerUpdate += -gamepad1.left_stick_y;
-                CbLowerUpdate += gamepad1.left_stick_x;
-                lowerruntime = getRuntime();
-            }
-            if (upperruntime + 0.05 < getRuntime()) {
-                CrUpperUpdate += -gamepad1.right_stick_y;
-                CbUpperUpdate += gamepad1.right_stick_x;
-                upperruntime = getRuntime();
-            }
-
-            CrLowerUpdate = inValues(CrLowerUpdate, 0, 255);
-            CrUpperUpdate = inValues(CrUpperUpdate, 0, 255);
-            CbLowerUpdate = inValues(CbLowerUpdate, 0, 255);
-            CbUpperUpdate = inValues(CbUpperUpdate, 0, 255);
-
-            myPipeline.configureScalarLower(0.0, CrLowerUpdate, CbLowerUpdate);
-            myPipeline.configureScalarUpper(255.0, CrUpperUpdate, CbUpperUpdate);
-
-            telemetry.addData("lowerCr ", (int) CrLowerUpdate);
-            telemetry.addData("lowerCb ", (int) CbLowerUpdate);
-            telemetry.addData("UpperCr ", (int) CrUpperUpdate);
-            telemetry.addData("UpperCb ", (int) CbUpperUpdate);
-        }
-
-        public Double inValues ( double value, double min, double max){
-            if (value < min) {
-                value = min;
-            }
-            if (value > max) {
-                value = max;
-            }
-            return value;
-        }
-
-        public void AUTONOMOUS_A () {
-            frontRight.setPower(0.2);
-            backRight.setPower(0.2);
-            frontLeft.setPower(-0.2);
-            backLeft.setPower(-0.2);
-            telemetry.addLine("Autonomous A");
-        }
-
-        public void AUTONOMOUS_B () {
-            frontRight.setPower(0);
-            backRight.setPower(0);
-            frontLeft.setPower(0);
-            backLeft.setPower(0);
-            telemetry.addLine("Autonomous B");
-        }
-
-        public void AUTONOMOUS_C () {
-            frontRight.setPower(-0.2);
-            backRight.setPower(-0.2);
-            frontLeft.setPower(0.2);
-            backLeft.setPower(0.2);
-            telemetry.addLine("Autonomous C");
-        }
-        public String findPole (ContourPipeline myPipeline){
-            String retvalue = "";
-            if (myPipeline.getRectArea() > 2000) {
-                if (myPipeline.getRectMidpointX() > 320) {
-                    AUTONOMOUS_C();
-                    retvalue = "C";
-                } else if (myPipeline.getRectMidpointX() > 280) {
+                } else if (myPipeline.getRectMidpointX() > 270) {
                     AUTONOMOUS_B();
-                    retvalue = "B";
                 } else {
                     AUTONOMOUS_A();
-                    retvalue = "A";
                 }
             }
-            return retvalue;
         }
     }
 
+    public void testing(ContourPipeline myPipeline) {
+        if (lowerruntime + 0.05 < getRuntime()) {
+            CrLowerUpdate += -gamepad1.left_stick_y;
+            CbLowerUpdate += gamepad1.left_stick_x;
+            lowerruntime = getRuntime();
+        }
+        if (upperruntime + 0.05 < getRuntime()) {
+            CrUpperUpdate += -gamepad1.right_stick_y;
+            CbUpperUpdate += gamepad1.right_stick_x;
+            upperruntime = getRuntime();
+        }
+
+        CrLowerUpdate = inValues(CrLowerUpdate, 0, 255);
+        CrUpperUpdate = inValues(CrUpperUpdate, 0, 255);
+        CbLowerUpdate = inValues(CbLowerUpdate, 0, 255);
+        CbUpperUpdate = inValues(CbUpperUpdate, 0, 255);
+
+        myPipeline.configureScalarLower(0.0, CrLowerUpdate, CbLowerUpdate);
+        myPipeline.configureScalarUpper(255.0, CrUpperUpdate, CbUpperUpdate);
+
+        telemetry.addData("lowerCr ", (int) CrLowerUpdate);
+        telemetry.addData("lowerCb ", (int) CbLowerUpdate);
+        telemetry.addData("UpperCr ", (int) CrUpperUpdate);
+        telemetry.addData("UpperCb ", (int) CbUpperUpdate);
+    }
+
+    public Double inValues(double value, double min, double max) {
+        if (value < min) {
+            value = min;
+        }
+        if (value > max) {
+            value = max;
+        }
+        return value;
+    }
+
+    public void AUTONOMOUS_A() {
+        frontRight.setPower(0.15);
+        backRight.setPower(0.15);
+        frontLeft.setPower(-0.15);
+        backLeft.setPower(-0.15);
+        telemetry.addLine("Autonomous A");
+    }
+
+    public void AUTONOMOUS_B() {
+        frontRight.setPower(0);
+        backRight.setPower(0);
+        frontLeft.setPower(0);
+        backLeft.setPower(0);
+        telemetry.addLine("Autonomous B");
+    }
+
+    public void AUTONOMOUS_C() {
+        frontRight.setPower(-0.15);
+        backRight.setPower(-0.15);
+        frontLeft.setPower(0.15);
+        backLeft.setPower(0.15);
+        telemetry.addLine("Autonomous C");
+    }
+}

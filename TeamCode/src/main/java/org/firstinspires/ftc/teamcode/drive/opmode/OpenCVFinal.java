@@ -32,8 +32,6 @@ import java.util.ArrayList;
 
 
 public class OpenCVFinal extends LinearOpMode {
-
-
     private DcMotor leftRear = null;
     private DcMotor rightRear = null;
     private DcMotor leftFront = null;
@@ -47,13 +45,10 @@ public class OpenCVFinal extends LinearOpMode {
     CRServo grip1 = null;
     CRServo grip2 = null;
     DigitalChannel digitalTouch = null;
-
-
-
-
-    private static final int CAMERA_WIDTH = 320; // width  of wanted camera resolution
-    private static final int CAMERA_HEIGHT = 240; // height of wanted camera resolution
     private OpenCvCamera webcam;
+
+    private static final int CAMERA_WIDTH = 640; // width  of wanted camera resolution
+    private static final int CAMERA_HEIGHT = 360; // height of wanted camera resolution
 
     private double CrLowerUpdate = 152;
     private double CbLowerUpdate = 46;
@@ -68,114 +63,12 @@ public class OpenCVFinal extends LinearOpMode {
     private double lowerruntime = 0;
     private double upperruntime = 0;
 
+    // Yellow Range
     public static Scalar scalarLowerYCrCb = new Scalar(0.0, 100.0, 0.0);
     public static Scalar scalarUpperYCrCb = new Scalar(255.0, 170.0, 120.0);
-    OpenCvCamera camera;
-    AprilTagDetectionPipeline aprilTagDetectionPipeline;
-    ContourPipeline myPipeline = null;
-
-    static final double FEET_PER_METER = 3.28084;
-
-    // Lens intrinsics
-    // UNITS ARE PIXELS
-    // NOTE: this calibration is for the C920 webcam at 800x448.
-    // You will need to do your own calibration for other configurations!
-    double fx = 578.272;
-    double fy = 578.272;
-    double cx = 402.145;
-    double cy = 221.506;
-
-    // UNITS ARE METERS
-    double tagsize = 0.166;
-
-    // Tag ID 1,2,3 from the 36h11 family
-    int LEFT = 1;
-    int MIDDLE = 2;
-    int RIGHT = 3;
-    int LIFT_POS_GRAB = 0;
-    int LIFT_POS_HIGH = 3000;
-    int LIFT_POS_MEDIUM = 2150;
-    int LIFT_POS_LOW = 1300;
-    int step = 100;
-
-
-    AprilTagDetection tagOfInterest = null;
-
-    static final double COUNTS_PER_MOTOR_REV = 1120;    // eg: TETRIX Motor Encoder
-    static final double DRIVE_GEAR_REDUCTION = 1.0;     // No External Gearing.
-    static final double WHEEL_DIAMETER_INCHES = 2.0;     // For figuring circumference
-    static final double COUNTS_PER_INCH = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) / (WHEEL_DIAMETER_INCHES * 3.1415);
-    static final double DRIVE_SPEED = 0.6;
-    static final double TURN_SPEED = 0.5;
 
     @Override
     public void runOpMode() {
-
-        SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
-
-        Pose2d startPose = new Pose2d(-35.2, 65.6, Math.toRadians(-90));
-
-        drive.setPoseEstimate(startPose);
-
-
-
-        TrajectorySequence traj1 = drive.trajectorySequenceBuilder(startPose)
-
-                .strafeRight(70)
-            /*    .addTemporalMarker(8, () -> {
-                    String camPosition = "";
-                    telemetry.addData(camPosition, "");
-                    while (camPosition != "B") {
-                        camPosition = findPole(myPipeline);
-                        telemetry.update();
-                    }
-                })*/
-                .build();
-
-        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-        camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 2"), cameraMonitorViewId);
-        aprilTagDetectionPipeline = new AprilTagDetectionPipeline(tagsize, fx, fy, cx, cy);
-
-        camera.setPipeline(aprilTagDetectionPipeline);
-        camera.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
-            @Override
-            public void onOpened() {
-                camera.startStreaming(320, 240, OpenCvCameraRotation.SIDEWAYS_LEFT);
-            }
-
-            @Override
-            public void onError(int errorCode) {
-
-            }
-        });
-
-        int webcamMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-        webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"), webcamMonitorViewId);
-        ContourPipeline myPipeline;
-        webcam.setPipeline(myPipeline = new ContourPipeline(borderLeftX,borderRightX,borderTopY,borderBottomY));
-
-        myPipeline.configureScalarLower(scalarLowerYCrCb.val[0],scalarLowerYCrCb.val[1],scalarLowerYCrCb.val[2]);
-        myPipeline.configureScalarUpper(scalarUpperYCrCb.val[0],scalarUpperYCrCb.val[1],scalarUpperYCrCb.val[2]);
-
-        webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener()
-        {
-            @Override
-            public void onOpened()
-            {
-                webcam.startStreaming(CAMERA_WIDTH, CAMERA_HEIGHT, OpenCvCameraRotation.UPSIDE_DOWN);
-            }
-
-            @Override
-            public void onError(int errorCode)
-            {
-                /*
-                 * This will be called if the camera could not be opened
-                 */
-            }
-        });
-
-
-        telemetry.setMsTransmissionInterval(50);
 
         leftFront = hardwareMap.get(DcMotor.class, "fl");
         rightFront = hardwareMap.get(DcMotor.class, "fr");
@@ -189,14 +82,11 @@ public class OpenCVFinal extends LinearOpMode {
 
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
-        telemetry.addData("Starting at", "%7d :%7d");
         lift = hardwareMap.dcMotor.get("l");
         angle = hardwareMap.dcMotor.get("a");
         grip1 = hardwareMap.get(CRServo.class, "g1");
         grip2 = hardwareMap.get(CRServo.class, "g2");
         //RevBlinkinLedDriver blinkinLedDriver = hardwareMap.get(RevBlinkinLedDriver.class, "LED");
-        frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
-        backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
         lift.setDirection(DcMotorSimple.Direction.REVERSE);
         lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -214,170 +104,129 @@ public class OpenCVFinal extends LinearOpMode {
         digitalTouch.setMode(DigitalChannel.Mode.INPUT);
         telemetry.update();
 
-        while (!isStarted() && !isStopRequested()) {
-            ArrayList<AprilTagDetection> currentDetections = aprilTagDetectionPipeline.getLatestDetections();
 
 
-            if (currentDetections.size() != 0) {
-                boolean tagFound = false;
 
-                for (AprilTagDetection tag : currentDetections) {
-                    if (tag.id == LEFT || tag.id == MIDDLE || tag.id == RIGHT) {
-                        tagOfInterest = tag;
-                        tagFound = true;
-                        break;
-                    }
-                }
+        SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
 
-                if (tagFound) {
-                    telemetry.addLine("Tag of interest is in sight!\n\nLocation data:");
-                    tagToTelemetry(tagOfInterest);
-                } else {
-                    telemetry.addLine("Don't see tag of interest :(");
+        Pose2d startPose1 = new Pose2d(37.2,-67.6, Math.toRadians(90));
 
-                    if (tagOfInterest == null) {
-                        telemetry.addLine("(The tag has never been seen)");
-                    } else {
-                        telemetry.addLine("\nBut we HAVE seen the tag before; last seen at:");
-                        tagToTelemetry(tagOfInterest);
-                    }
-                }
 
-            } else {
-                telemetry.addLine("Don't see tag of interest :(");
+        drive.setPoseEstimate(startPose1);
 
-                if (tagOfInterest == null) {
-                    telemetry.addLine("(The tag has never been seen)");
-                } else {
-                    telemetry.addLine("\nBut we HAVE seen the tag before; last seen at:");
-                    tagToTelemetry(tagOfInterest);
-                }
 
+        TrajectorySequence traj1 = drive.trajectorySequenceBuilder(startPose1)
+                .lineToLinearHeading(new Pose2d(37.2,-45, Math.toRadians(-180)))
+                .lineToLinearHeading(new Pose2d(38,0, Math.toRadians(-180)))
+                .build();
+
+
+
+        // OpenCV webcam
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"), cameraMonitorViewId);
+        //OpenCV Pipeline
+        ContourPipeline myPipeline;
+        webcam.setPipeline(myPipeline = new ContourPipeline(borderLeftX, borderRightX, borderTopY, borderBottomY));
+        // Configuration of Pipeline
+        myPipeline.configureScalarLower(scalarLowerYCrCb.val[0], scalarLowerYCrCb.val[1], scalarLowerYCrCb.val[2]);
+        myPipeline.configureScalarUpper(scalarUpperYCrCb.val[0], scalarUpperYCrCb.val[1], scalarUpperYCrCb.val[2]);
+        // Webcam Streaming
+        webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
+            @Override
+            public void onOpened() {
+                webcam.startStreaming(CAMERA_WIDTH, CAMERA_HEIGHT, OpenCvCameraRotation.UPSIDE_DOWN);
             }
 
-            telemetry.update();
+            @Override
+            public void onError(int errorCode) {
+                /*
+                 * This will be called if the camera could not be opened
+                 */
+            }
+        });
+        // Only if you are using ftcdashboard
+        FtcDashboard dashboard = FtcDashboard.getInstance();
+        telemetry = new MultipleTelemetry(telemetry, dashboard.getTelemetry());
+        FtcDashboard.getInstance().startCameraStream(webcam, 10);
 
-        }
-
-        /* Update the telemetry */
-        if (tagOfInterest != null) {
-            telemetry.addLine("Tag snapshot:\n");
-            tagToTelemetry(tagOfInterest);
-            telemetry.update();
-        } else {
-            telemetry.addLine("No tag snapshot available, it was never sighted during the init loop :(");
-            telemetry.update();
-        }
-
+        telemetry.update();
         waitForStart();
 
-            if (tagOfInterest == null || tagOfInterest.id == LEFT) {
-                findPole(myPipeline);
+        drive.followTrajectorySequence(traj1);
 
-            } else if (tagOfInterest.id == MIDDLE) {
-                drive.followTrajectorySequence(traj1);
-
-            } else {
-                drive.followTrajectorySequence(traj1);
-
-
-            }
+        while (opModeIsActive()) {
             myPipeline.configureBorders(borderLeftX, borderRightX, borderTopY, borderBottomY);
             if (myPipeline.error) {
                 telemetry.addData("Exception: ", myPipeline.debug);
             }
-        while (opModeIsActive()) {
-
-        }
-            myPipeline.configureBorders(borderLeftX, borderRightX, borderTopY, borderBottomY);
-            if(myPipeline.error){
-                telemetry.addData("Exception: ", myPipeline.debug);
-            }
-            // Only use this line of the code when you want to find the lower and upper values
-            testing(myPipeline);
-
             telemetry.addData("RectArea: ", myPipeline.getRectArea());
             telemetry.update();
-
-            if(myPipeline.getRectArea() > 2000){
-                if(myPipeline.getRectMidpointX() > 320){
+            if (myPipeline.getRectArea() > 2000) {
+                if (myPipeline.getRectMidpointX() > 290) {
                     AUTONOMOUS_C();
-                }
-                else if(myPipeline.getRectMidpointX() > 280){
+                } else if (myPipeline.getRectMidpointX() > 270) {
                     AUTONOMOUS_B();
-                }
-                else {
+                    break;
+                } else {
                     AUTONOMOUS_A();
                 }
+
+                while (myPipeline.getRectMidpointX() < 290 && myPipeline.getRectMidpointX() > 270){
+                    if (myPipeline.getRectArea() > 14200) {
+                        AUTOBACKWARD();
+                    } else if (myPipeline.getRectArea() < 13600) {
+                        AUTOFORWARD();
+                    } else {
+                        AUTOSCORE();
+                        break;
+                    }
+
+                }
+            }
         }
+
+        }
+
+    private void AUTOSCORE() {
+        robotPower(0, 0);
+
+
     }
-    public void testing(ContourPipeline myPipeline){
-        if(lowerruntime + 0.05 < getRuntime()){
-            CrLowerUpdate += -gamepad1.left_stick_y;
-            CbLowerUpdate += gamepad1.left_stick_x;
-            lowerruntime = getRuntime();
+    public Double inValues(double value, double min, double max) {
+        if (value < min) {
+            value = min;
         }
-        if(upperruntime + 0.05 < getRuntime()){
-            CrUpperUpdate += -gamepad1.right_stick_y;
-            CbUpperUpdate += gamepad1.right_stick_x;
-            upperruntime = getRuntime();
+        if (value > max) {
+            value = max;
         }
-
-        CrLowerUpdate = inValues(CrLowerUpdate, 0, 255);
-        CrUpperUpdate = inValues(CrUpperUpdate, 0, 255);
-        CbLowerUpdate = inValues(CbLowerUpdate, 0, 255);
-        CbUpperUpdate = inValues(CbUpperUpdate, 0, 255);
-
-        myPipeline.configureScalarLower(0.0, CrLowerUpdate, CbLowerUpdate);
-        myPipeline.configureScalarUpper(255.0, CrUpperUpdate, CbUpperUpdate);
-
-        telemetry.addData("lowerCr ", (int)CrLowerUpdate);
-        telemetry.addData("lowerCb ", (int)CbLowerUpdate);
-        telemetry.addData("UpperCr ", (int)CrUpperUpdate);
-        telemetry.addData("UpperCb ", (int)CbUpperUpdate);
-    }
-    public Double inValues(double value, double min, double max){
-        if(value < min){ value = min; }
-        if(value > max){ value = max; }
         return value;
     }
     public void AUTONOMOUS_A() {
+        robotPower(-0.13f,0.13f);
         telemetry.addLine("Autonomous A");
-        frontRight.setPower(0.1);
-        backRight.setPower(0.1);
-        frontLeft.setPower(-0.1);
-        backLeft.setPower(-0.1);
     }
 
     public void AUTONOMOUS_B() {
-//forward
+       robotPower(0,0);
         telemetry.addLine("Autonomous B");
     }
 
     public void AUTONOMOUS_C() {
-        //left forward
-        //right backward
+        robotPower(0.13f, -0.13f);
         telemetry.addLine("Autonomous C");
     }
-
-    public String findPole(ContourPipeline myPipeline) {
-        String retvalue = "";
-        if (myPipeline.getRectArea() > 2000) {
-            if (myPipeline.getRectMidpointX() > 320) {
-                AUTONOMOUS_C();
-                retvalue = "C";
-            } else if (myPipeline.getRectMidpointX() > 280) {
-                AUTONOMOUS_B();
-                retvalue = "B";
-            } else {
-                AUTONOMOUS_A();
-                retvalue = "A";
-            }
-        }
-        return retvalue;
+    public void robotPower(float leftPower, float rightPower){
+        frontRight.setPower(rightPower);
+        backRight.setPower(rightPower);
+        frontLeft.setPower(leftPower);
+        backLeft.setPower(leftPower);
+    }
+    private void AUTOFORWARD() {
+        robotPower(0.13f, 0.13f);
     }
 
-    void tagToTelemetry(AprilTagDetection detection) {
-        telemetry.addLine(String.format("\nDetected tag ID=%d", detection.id));
+    private void AUTOBACKWARD() {
+        robotPower(-0.13f, -0.13f);
     }
 }
