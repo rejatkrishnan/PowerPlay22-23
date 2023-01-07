@@ -1,7 +1,5 @@
 package org.firstinspires.ftc.teamcode.drive.opmode;
 
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
-
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
@@ -17,8 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 // Credits to team 7303 RoboAvatars, adjusted by team 3954 Pink to the Future
-
-public class ContourPipeline extends OpenCvPipeline {
+public class ContourPipeline extends  OpenCvPipeline{
     Scalar HOT_PINK = new Scalar(196, 23, 112);
 
     // Pink, the default color                         Y      Cr     Cb    (Do not change Y)
@@ -222,3 +219,5 @@ public class ContourPipeline extends OpenCvPipeline {
         }
     }
 }
+
+

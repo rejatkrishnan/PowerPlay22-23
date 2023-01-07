@@ -4,41 +4,29 @@ import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.teamcode.trajectorysequence.TrajectorySequenceBuilder;
 import org.opencv.core.Scalar;
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
 import org.openftc.easyopencv.OpenCvCameraRotation;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
-import com.acmerobotics.roadrunner.geometry.Vector2d;
-import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.teamcode.drive.DriveConstants;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.trajectorysequence.TrajectorySequence;
-import org.openftc.apriltag.AprilTagDetection;
-import org.openftc.easyopencv.OpenCvCamera;
-import org.openftc.easyopencv.OpenCvCameraFactory;
-import org.openftc.easyopencv.OpenCvCameraRotation;
 
-import java.util.ArrayList;
-@Disabled
 @Config //Disable if not using FTC Dashboard https://github.com/PinkToTheFuture/OpenCV_FreightFrenzy_2021-2022#opencv_freightfrenzy_2021-2022
-@Autonomous(name="OpenCV_Contour_3954_Test", group="Tutorials")
+@Autonomous
 
-public class OpenCVTest extends LinearOpMode {
+
+
+public class ConeDetectFinal extends LinearOpMode {
     private DcMotor leftRear = null;
     private DcMotor rightRear = null;
     private DcMotor leftFront = null;
@@ -47,6 +35,11 @@ public class OpenCVTest extends LinearOpMode {
     private DcMotor frontRight = null;
     private DcMotor backLeft = null;
     private DcMotor backRight = null;
+    DcMotor lift = null;
+    DcMotor angle = null;
+    CRServo grip1 = null;
+    CRServo grip2 = null;
+    DigitalChannel digitalTouch = null;
     private OpenCvCamera webcam;
 
     private static final int CAMERA_WIDTH = 640; // width  of wanted camera resolution
@@ -66,8 +59,8 @@ public class OpenCVTest extends LinearOpMode {
     private double upperruntime = 0;
 
     // Yellow Range
-    public static Scalar scalarLowerYCrCb = new Scalar(0.0, 100.0, 0.0);
-    public static Scalar scalarUpperYCrCb = new Scalar(255.0, 170.0, 120.0);
+    public static Scalar scalarLowerYCrCbCone = new Scalar(0.0, 100.0, 0.0);
+    public static Scalar scalarUpperYCrCbCone = new Scalar(255.0, 170.0, 120.0);
 
     @Override
     public void runOpMode() {
@@ -84,16 +77,42 @@ public class OpenCVTest extends LinearOpMode {
 
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+        lift = hardwareMap.dcMotor.get("l");
+        angle = hardwareMap.dcMotor.get("a");
+        grip1 = hardwareMap.get(CRServo.class, "g1");
+        grip2 = hardwareMap.get(CRServo.class, "g2");
+        //RevBlinkinLedDriver blinkinLedDriver = hardwareMap.get(RevBlinkinLedDriver.class, "LED");
+
+        lift.setDirection(DcMotorSimple.Direction.REVERSE);
+        lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        lift.setTargetPosition(0);
+        lift.setPower(1);
+        lift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        angle.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        telemetry.setAutoClear(true);
+        Telemetry.Item liftPosition = telemetry.addData("Lift Position", lift.getCurrentPosition());
+        liftPosition.setValue(lift.getCurrentPosition());
+        digitalTouch = hardwareMap.get(DigitalChannel.class, "sensor_digital");
+        digitalTouch.setMode(DigitalChannel.Mode.INPUT);
+        telemetry.update();
+
+
+
 
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
 
-        Pose2d startPose1 = new Pose2d(-39,65.6, Math.toRadians(-90));
+        Pose2d startPose1 = new Pose2d(37.2,-67.6, Math.toRadians(90));
 
 
         drive.setPoseEstimate(startPose1);
 
+
         TrajectorySequence traj1 = drive.trajectorySequenceBuilder(startPose1)
-                .strafeRight(70)
+                .lineToLinearHeading(new Pose2d(37.2,-45, Math.toRadians(-180)))
+                .lineToLinearHeading(new Pose2d(38,0, Math.toRadians(-180)))
                 .build();
 
 
@@ -105,8 +124,8 @@ public class OpenCVTest extends LinearOpMode {
         ContourPipeline myPipeline;
         webcam.setPipeline(myPipeline = new ContourPipeline(borderLeftX, borderRightX, borderTopY, borderBottomY));
         // Configuration of Pipeline
-        myPipeline.configureScalarLower(scalarLowerYCrCb.val[0], scalarLowerYCrCb.val[1], scalarLowerYCrCb.val[2]);
-        myPipeline.configureScalarUpper(scalarUpperYCrCb.val[0], scalarUpperYCrCb.val[1], scalarUpperYCrCb.val[2]);
+        myPipeline.configureScalarLower(scalarLowerYCrCbCone.val[0], scalarLowerYCrCbCone.val[1], scalarLowerYCrCbCone.val[2]);
+        myPipeline.configureScalarUpper(scalarUpperYCrCbCone.val[0], scalarUpperYCrCbCone.val[1], scalarUpperYCrCbCone.val[2]);
         // Webcam Streaming
         webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
             @Override
@@ -132,58 +151,43 @@ public class OpenCVTest extends LinearOpMode {
         drive.followTrajectorySequence(traj1);
 
         while (opModeIsActive()) {
-
-
             myPipeline.configureBorders(borderLeftX, borderRightX, borderTopY, borderBottomY);
             if (myPipeline.error) {
                 telemetry.addData("Exception: ", myPipeline.debug);
             }
-            // Only use this line of the code when you want to find the lower and upper values
-            testing(myPipeline);
-
             telemetry.addData("RectArea: ", myPipeline.getRectArea());
             telemetry.update();
-
-
-
             if (myPipeline.getRectArea() > 2000) {
                 if (myPipeline.getRectMidpointX() > 290) {
                     AUTONOMOUS_C();
                 } else if (myPipeline.getRectMidpointX() > 270) {
                     AUTONOMOUS_B();
+                    break;
                 } else {
                     AUTONOMOUS_A();
                 }
+
+                while (myPipeline.getRectMidpointX() < 285 && myPipeline.getRectMidpointX() > 260){
+                    if (myPipeline.getRectArea() > 15200) {
+                        AUTOBACKWARD();
+                    } else if (myPipeline.getRectArea() < 14100) {
+                        AUTOFORWARD();
+                    } else {
+                        AUTOSCORE();
+                        break;
+                    }
+
+                }
             }
         }
+
     }
 
-    public void testing(ContourPipeline myPipeline) {
-        if (lowerruntime + 0.05 < getRuntime()) {
-            CrLowerUpdate += -gamepad1.left_stick_y;
-            CbLowerUpdate += gamepad1.left_stick_x;
-            lowerruntime = getRuntime();
-        }
-        if (upperruntime + 0.05 < getRuntime()) {
-            CrUpperUpdate += -gamepad1.right_stick_y;
-            CbUpperUpdate += gamepad1.right_stick_x;
-            upperruntime = getRuntime();
-        }
+    private void AUTOSCORE() {
+        robotPower(0, 0);
 
-        CrLowerUpdate = inValues(CrLowerUpdate, 0, 255);
-        CrUpperUpdate = inValues(CrUpperUpdate, 0, 255);
-        CbLowerUpdate = inValues(CbLowerUpdate, 0, 255);
-        CbUpperUpdate = inValues(CbUpperUpdate, 0, 255);
 
-        myPipeline.configureScalarLower(0.0, CrLowerUpdate, CbLowerUpdate);
-        myPipeline.configureScalarUpper(255.0, CrUpperUpdate, CbUpperUpdate);
-
-        telemetry.addData("lowerCr ", (int) CrLowerUpdate);
-        telemetry.addData("lowerCb ", (int) CbLowerUpdate);
-        telemetry.addData("UpperCr ", (int) CrUpperUpdate);
-        telemetry.addData("UpperCb ", (int) CbUpperUpdate);
     }
-
     public Double inValues(double value, double min, double max) {
         if (value < min) {
             value = min;
@@ -193,28 +197,31 @@ public class OpenCVTest extends LinearOpMode {
         }
         return value;
     }
-
     public void AUTONOMOUS_A() {
-        frontRight.setPower(0.15);
-        backRight.setPower(0.15);
-        frontLeft.setPower(-0.15);
-        backLeft.setPower(-0.15);
+        robotPower(-0.13f,0.13f);
         telemetry.addLine("Autonomous A");
     }
 
     public void AUTONOMOUS_B() {
-        frontRight.setPower(0);
-        backRight.setPower(0);
-        frontLeft.setPower(0);
-        backLeft.setPower(0);
+        robotPower(0,0);
         telemetry.addLine("Autonomous B");
     }
 
     public void AUTONOMOUS_C() {
-        frontRight.setPower(-0.15);
-        backRight.setPower(-0.15);
-        frontLeft.setPower(0.15);
-        backLeft.setPower(0.15);
+        robotPower(0.13f, -0.13f);
         telemetry.addLine("Autonomous C");
+    }
+    public void robotPower(float leftPower, float rightPower){
+        frontRight.setPower(rightPower);
+        backRight.setPower(rightPower);
+        frontLeft.setPower(leftPower);
+        backLeft.setPower(leftPower);
+    }
+    private void AUTOFORWARD() {
+        robotPower(0.13f, 0.13f);
+    }
+
+    private void AUTOBACKWARD() {
+        robotPower(-0.13f, -0.13f);
     }
 }

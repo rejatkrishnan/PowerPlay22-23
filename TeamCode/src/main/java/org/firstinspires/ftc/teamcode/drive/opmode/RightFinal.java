@@ -1,33 +1,25 @@
 package org.firstinspires.ftc.teamcode.drive.opmode;
-
 import com.acmerobotics.roadrunner.geometry.Pose2d;
-import com.acmerobotics.roadrunner.geometry.Vector2d;
-import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
-
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.teamcode.drive.DriveConstants;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.trajectorysequence.TrajectorySequence;
-import org.firstinspires.ftc.teamcode.trajectorysequence.TrajectorySequenceBuilder;
+import org.opencv.core.Scalar;
 import org.openftc.apriltag.AprilTagDetection;
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
 import org.openftc.easyopencv.OpenCvCameraRotation;
-
 import java.util.ArrayList;
-@Disabled
+
 @Autonomous
 
-public class Right extends LinearOpMode {
-
+public class RightFinal extends LinearOpMode {
     private DcMotor leftRear = null;
     private DcMotor rightRear = null;
     private DcMotor leftFront = null;
@@ -41,7 +33,26 @@ public class Right extends LinearOpMode {
     CRServo grip1 = null;
     CRServo grip2 = null;
     DigitalChannel digitalTouch = null;
+    private OpenCvCamera webcam;
+    private static final int CAMERA_WIDTH = 640; // width  of wanted camera resolution
+    private static final int CAMERA_HEIGHT = 360; // height of wanted camera resolution
+    private double CrLowerUpdate = 152;
+    private double CbLowerUpdate = 46;
+    private double CrUpperUpdate = 163;
+    private double CbUpperUpdate = 172;
+    public static double borderLeftX = 0.0;   //fraction of pixels from the left side of the cam to skip
+    public static double borderRightX = 0.0;   //fraction of pixels from the right of the cam to skip
+    public static double borderTopY = 0.0;   //fraction of pixels from the top of the cam to skip
+    public static double borderBottomY = 0.0;   //fraction of pixels from the bottom of the cam to skip
+    private double lowerruntime = 0;
+    private double upperruntime = 0;
 
+    //cone color
+    public static Scalar scalarLowerYCrCbCone = new Scalar(0.0, 100.0, 0.0);
+    public static Scalar scalarUpperYCrCbCone = new Scalar(255.0, 170.0, 120.0);
+    //pole color
+    public static Scalar scalarLowerYCrCb = new Scalar(0.0, 152, 46);
+    public static Scalar scalarUpperYCrCb = new Scalar(255.0, 163, 172);
 
     OpenCvCamera camera;
     AprilTagDetectionPipeline aprilTagDetectionPipeline;
@@ -50,8 +61,6 @@ public class Right extends LinearOpMode {
 
     // Lens intrinsics
     // UNITS ARE PIXELS
-    // NOTE: this calibration is for the C920 webcam at 800x448.
-    // You will need to do your own calibration for other configurations!
     double fx = 578.272;
     double fy = 578.272;
     double cx = 402.145;
@@ -60,16 +69,10 @@ public class Right extends LinearOpMode {
     // UNITS ARE METERS
     double tagsize = 0.166;
 
-    // Tag ID 1,2,3 from the 36h11 family
+    // Tag ID 1,2,3
     int LEFT = 1;
     int MIDDLE = 2;
     int RIGHT = 3;
-    int LIFT_POS_GRAB = 0;
-    int LIFT_POS_HIGH = 3000;
-    int LIFT_POS_MEDIUM = 2150;
-    int LIFT_POS_LOW = 1300;
-    int step = 100;
-
 
     AprilTagDetection tagOfInterest = null;
 
@@ -85,66 +88,24 @@ public class Right extends LinearOpMode {
 
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
 
-        Pose2d startPose1 = new Pose2d(-39,65.6, Math.toRadians(-90));
-
+        Pose2d startPose1 = new Pose2d(-42.2, 67.6, Math.toRadians(0));
 
         drive.setPoseEstimate(startPose1);
 
-
-
-
         TrajectorySequence traj1 = drive.trajectorySequenceBuilder(startPose1)
-                .lineToConstantHeading(new Vector2d(-36.5, 0))
+                .lineToLinearHeading(new Pose2d(-42.2, 45, Math.toRadians(-90)))
+                .lineToLinearHeading(new Pose2d(-44, 0, Math.toRadians(-90)))
+                .addDisplacementMarker(() -> {
+                   findPole();
+                })
                 .build();
         TrajectorySequence traj2 = drive.trajectorySequenceBuilder(traj1.end())
-                .lineToConstantHeading(new Vector2d(-35.2, 11))
-                .addTemporalMarker(0.5, () -> {
-                    setAngle(0.7f, 500);
-                })
-                .addTemporalMarker(1, () -> {
-                    Lift(1,2900);
-                    grip(0.01f);
-                })
                 .waitSeconds(1)
+                .forward(5)
                 .build();
 
-        TrajectorySequence traj3 = drive.trajectorySequenceBuilder(traj2.end())
-                .lineToLinearHeading(
-                        new Pose2d(-33, 12, Math.toRadians(-57)),
-                        SampleMecanumDrive.getVelocityConstraint(9, DriveConstants.MAX_ANG_VEL, DriveConstants.TRACK_WIDTH),
-                        SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL)
-                )
-                .addTemporalMarker(3.8, () -> {
-                    Lift(0.4f, 320);
 
-                })
-                .addTemporalMarker(4.5, () -> {
-                    grip(-0.3f);
-
-                })
-                .waitSeconds(1)
-
-                .build();
-  /*     TrajectorySequence traj4 = drive.trajectorySequenceBuilder(traj3.end())
-               .waitSeconds(1)
-                .lineToLinearHeading(new Pose2d(-33, 23, Math.toRadians(-50)))
-                .splineToLinearHeading(new Pose2d(-40, 12, Math.toRadians(175)), Math.toRadians(180))
-                .addDisplacementMarker(3, () -> {
-                    grip(0.5f);
-                })
-                .build();
-       TrajectorySequence traj5 = drive.trajectorySequenceBuilder(traj4.end())
-                .lineToConstantHeading(new Vector2d(-53.5, 12))
-                .addTemporalMarker(1.1, () -> {
-                    Lift(1,2900);
-                    grip(0);
-                })
-                .lineToLinearHeading(new Pose2d(-31, 10.5, Math.toRadians(-48)))
-                .build();
-
-*/
-        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-        camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"), cameraMonitorViewId);
+        camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"));
         aprilTagDetectionPipeline = new AprilTagDetectionPipeline(tagsize, fx, fy, cx, cy);
 
         camera.setPipeline(aprilTagDetectionPipeline);
@@ -263,49 +224,76 @@ public class Right extends LinearOpMode {
             telemetry.addLine("No tag snapshot available, it was never sighted during the init loop :(");
             telemetry.update();
         }
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"), cameraMonitorViewId);
+        //OpenCV Pipeline
 
-
-
-        /* Actually do something useful */
+        // Webcam Streaming
+        webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
+            @Override
+            public void onOpened() {
+                webcam.startStreaming(CAMERA_WIDTH, CAMERA_HEIGHT, OpenCvCameraRotation.UPSIDE_DOWN);
+            }
+            @Override
+            public void onError(int errorCode) {
+            }
+        });
         waitForStart();
 
-
-
         if (tagOfInterest == null || tagOfInterest.id == LEFT) {
-
             drive.followTrajectorySequence(traj1);
             drive.followTrajectorySequence(traj2);
-            drive.followTrajectorySequence(traj3);
-
         } else if (tagOfInterest.id == MIDDLE) {
-
             drive.followTrajectorySequence(traj1);
             drive.followTrajectorySequence(traj2);
-            drive.followTrajectorySequence(traj3);
-
         } else {
-
             drive.followTrajectorySequence(traj1);
             drive.followTrajectorySequence(traj2);
-            drive.followTrajectorySequence(traj3);
-
         }
-
         while (opModeIsActive()) {
-            sleep(20);
         }
     }
-
-
-
-
-
     public void setAngle(float power, int timeLimit) {
         angle.setPower(power);
         sleep(timeLimit);
         angle.setPower(0);
     }
-
+    private void AUTOSCORE() {
+        robotPower(0, 0);
+    }
+    public Double inValues(double value, double min, double max) {
+        if (value < min) {
+            value = min;
+        }
+        if (value > max) {
+            value = max;
+        }
+        return value;
+    }
+    public void AUTONOMOUS_A() {
+        robotPower(-0.13f, 0.13f);
+        telemetry.addLine("Autonomous A");
+    }
+    public void AUTONOMOUS_B() {
+        robotPower(0, 0);
+        telemetry.addLine("Autonomous B");
+    }
+    public void AUTONOMOUS_C() {
+        robotPower(0.13f, -0.13f);
+        telemetry.addLine("Autonomous C");
+    }
+    public void robotPower(float leftPower, float rightPower) {
+        frontRight.setPower(rightPower);
+        backRight.setPower(rightPower);
+        frontLeft.setPower(leftPower);
+        backLeft.setPower(leftPower);
+    }
+    private void AUTOFORWARD() {
+        robotPower(0.13f, 0.13f);
+    }
+    private void AUTOBACKWARD() {
+        robotPower(-0.13f, -0.13f);
+    }
     public void Lift(float power, int target) {
         Telemetry.Item liftPosition = telemetry.addData("Lift Position", lift.getCurrentPosition());
         lift.setPower(power);
@@ -314,25 +302,83 @@ public class Right extends LinearOpMode {
         lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         telemetry.update();
     }
-
     private void grip(float power) {
         grip1.setPower(power);
         grip2.setPower(-power);
-
     }
-    private void driving(float speed) {
-       TrajectorySequenceBuilder sam = null;
-
+    public void findPole() {
+        ContourPipeline myPipeline;
+        webcam.setPipeline(myPipeline = new ContourPipeline(borderLeftX, borderRightX, borderTopY, borderBottomY));
+        // Configuration of Pipeline
+        myPipeline.configureScalarLower(scalarLowerYCrCb.val[0], scalarLowerYCrCb.val[1], scalarLowerYCrCb.val[2]);
+        myPipeline.configureScalarUpper(scalarUpperYCrCb.val[0], scalarUpperYCrCb.val[1], scalarUpperYCrCb.val[2]);
+        myPipeline.configureBorders(borderLeftX, borderRightX, borderTopY, borderBottomY);
+        if (myPipeline.error) {
+            telemetry.addData("Exception: ", myPipeline.debug);
+        }
+        telemetry.addData("RectArea: ", myPipeline.getRectArea());
+        telemetry.update();
+        while(myPipeline.getRectArea() > 0)
+            if (myPipeline.getRectArea() > 2000) {
+            if (myPipeline.getRectMidpointX() > 290) {
+                AUTONOMOUS_C();
+            } else if (myPipeline.getRectMidpointX() > 270) {
+                AUTONOMOUS_B();
+               break;
+            } else {
+                AUTONOMOUS_A();
+            }
         }
 
+        while (myPipeline.getRectMidpointX() < 285 && myPipeline.getRectMidpointX() > 260) {
+            if (myPipeline.getRectArea() > 15200) {
+                AUTOBACKWARD();
+            } else if (myPipeline.getRectArea() < 14100) {
+                AUTOFORWARD();
+            } else {
+                AUTOSCORE();
+                break;
+            }
+        }
+    }
+    public void findCone() {
+            ContourPipeline myPipeline;
+            webcam.setPipeline(myPipeline = new ContourPipeline(borderLeftX, borderRightX, borderTopY, borderBottomY));
+            // Configuration of Pipeline
+            myPipeline.configureScalarLower(scalarLowerYCrCbCone.val[0], scalarLowerYCrCbCone.val[1], scalarLowerYCrCbCone.val[2]);
+            myPipeline.configureScalarUpper(scalarUpperYCrCbCone.val[0], scalarUpperYCrCbCone.val[1], scalarUpperYCrCbCone.val[2]);
+            myPipeline.configureBorders(borderLeftX, borderRightX, borderTopY, borderBottomY);
+            if (myPipeline.error) {
+                telemetry.addData("Exception: ", myPipeline.debug);
+            }
+            telemetry.addData("RectArea: ", myPipeline.getRectArea());
+            telemetry.update();
+            //needs to be configured tomorrow
+            while(myPipeline.getRectArea() > 0)
+                if (myPipeline.getRectArea() > 2000) {
+                    if (myPipeline.getRectMidpointX() > 290) {
+                        AUTONOMOUS_C();
+                    } else if (myPipeline.getRectMidpointX() > 270) {
+                        AUTONOMOUS_B();
+                        break;
+                    } else {
+                        AUTONOMOUS_A();
+                    }
+                }
+
+            while (myPipeline.getRectMidpointX() < 285 && myPipeline.getRectMidpointX() > 260) {
+                if (myPipeline.getRectArea() > 15200) {
+                    AUTOBACKWARD();
+                } else if (myPipeline.getRectArea() < 14100) {
+                    AUTOFORWARD();
+                } else {
+                    AUTOSCORE();
+                    break;
+                    //end configuration of cone
+                }
+            }
+        }
     void tagToTelemetry(AprilTagDetection detection) {
         telemetry.addLine(String.format("\nDetected tag ID=%d", detection.id));
-        telemetry.addLine(String.format("Translation X: %.2f feet", detection.pose.x * FEET_PER_METER));
-        telemetry.addLine(String.format("Translation Y: %.2f feet", detection.pose.y * FEET_PER_METER));
-        telemetry.addLine(String.format("Translation Z: %.2f feet", detection.pose.z * FEET_PER_METER));
-        //telemetry.addLine(String.format("Rotation Yaw: %.2f degrees", Math.toDegrees(detection.pose.yaw)));
-        //telemetry.addLine(String.format("Rotation Pitch: %.2f degrees", Math.toDegrees(detection.pose.pitch)));
-        //telemetry.addLine(String.format("Rotation Roll: %.2f degrees", Math.toDegrees(detection.pose.roll)));
-
     }
 }

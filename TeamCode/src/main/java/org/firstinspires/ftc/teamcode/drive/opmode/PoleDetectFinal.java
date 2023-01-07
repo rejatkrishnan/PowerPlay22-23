@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode.drive.opmode;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
-import com.acmerobotics.roadrunner.geometry.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
@@ -21,17 +20,13 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.trajectorysequence.TrajectorySequence;
-import org.openftc.apriltag.AprilTagDetection;
-import org.openftc.easyopencv.OpenCvPipeline;
-
-import java.util.ArrayList;
 
 @Config //Disable if not using FTC Dashboard https://github.com/PinkToTheFuture/OpenCV_FreightFrenzy_2021-2022#opencv_freightfrenzy_2021-2022
 @Autonomous
 
 
 
-public class OpenCVFinal extends LinearOpMode {
+public class PoleDetectFinal extends LinearOpMode {
     private DcMotor leftRear = null;
     private DcMotor rightRear = null;
     private DcMotor leftFront = null;
@@ -172,10 +167,10 @@ public class OpenCVFinal extends LinearOpMode {
                     AUTONOMOUS_A();
                 }
 
-                while (myPipeline.getRectMidpointX() < 290 && myPipeline.getRectMidpointX() > 270){
-                    if (myPipeline.getRectArea() > 14200) {
+                while (myPipeline.getRectMidpointX() < 285 && myPipeline.getRectMidpointX() > 260){
+                    if (myPipeline.getRectArea() > 15200) {
                         AUTOBACKWARD();
-                    } else if (myPipeline.getRectArea() < 13600) {
+                    } else if (myPipeline.getRectArea() < 14100) {
                         AUTOFORWARD();
                     } else {
                         AUTOSCORE();
@@ -186,7 +181,7 @@ public class OpenCVFinal extends LinearOpMode {
             }
         }
 
-        }
+    }
 
     private void AUTOSCORE() {
         robotPower(0, 0);
@@ -208,7 +203,7 @@ public class OpenCVFinal extends LinearOpMode {
     }
 
     public void AUTONOMOUS_B() {
-       robotPower(0,0);
+        robotPower(0,0);
         telemetry.addLine("Autonomous B");
     }
 
