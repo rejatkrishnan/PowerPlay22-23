@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.drive.opmode;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
+import com.acmerobotics.roadrunner.geometry.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -8,6 +9,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.teamcode.drive.DriveConstants;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.trajectorysequence.TrajectorySequence;
 import org.opencv.core.Scalar;
@@ -88,20 +90,30 @@ public class RightFinal extends LinearOpMode {
 
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
 
-        Pose2d startPose1 = new Pose2d(-42.2, 67.6, Math.toRadians(0));
+        Pose2d startPose = new Pose2d(-35.2,65.6, Math.toRadians(-90));
 
-        drive.setPoseEstimate(startPose1);
+        drive.setPoseEstimate(startPose);
 
-        TrajectorySequence traj1 = drive.trajectorySequenceBuilder(startPose1)
-                .lineToLinearHeading(new Pose2d(-42.2, 45, Math.toRadians(-90)))
-                .lineToLinearHeading(new Pose2d(-44, 0, Math.toRadians(-90)))
-                .addDisplacementMarker(() -> {
-                   findPole();
-                })
+
+        TrajectorySequence traj1 = drive.trajectorySequenceBuilder(startPose)
+                .lineToConstantHeading(new Vector2d(-36, 0))
                 .build();
         TrajectorySequence traj2 = drive.trajectorySequenceBuilder(traj1.end())
-                .waitSeconds(1)
-                .forward(5)
+                .lineToConstantHeading(new Vector2d(-36.1, 15.4))
+                .lineToLinearHeading(new Pose2d(-32.6, 12.6, Math.toRadians(-33.5)))
+                .addTemporalMarker(0.5, () -> {
+                    setAngle(0.8f, 500);
+                })
+                .addTemporalMarker(1, () -> {
+                    Lift(1,3000);
+                })
+                .addTemporalMarker(2, this::findPole)
+                .waitSeconds(4)
+                .addTemporalMarker(3.1, () -> {
+                    Lift(0.4f, 440);
+                    grip(-0.5f);
+                })
+
                 .build();
 
 
@@ -112,7 +124,7 @@ public class RightFinal extends LinearOpMode {
         camera.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
             @Override
             public void onOpened() {
-                camera.startStreaming(800, 448, OpenCvCameraRotation.SIDEWAYS_LEFT);
+                camera.startStreaming(800, 448, OpenCvCameraRotation.SIDEWAYS_RIGHT);
             }
 
             @Override
@@ -232,7 +244,7 @@ public class RightFinal extends LinearOpMode {
         webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
             @Override
             public void onOpened() {
-                webcam.startStreaming(CAMERA_WIDTH, CAMERA_HEIGHT, OpenCvCameraRotation.UPSIDE_DOWN);
+                webcam.startStreaming(CAMERA_WIDTH, CAMERA_HEIGHT, OpenCvCameraRotation.UPRIGHT);
             }
             @Override
             public void onError(int errorCode) {
@@ -271,7 +283,7 @@ public class RightFinal extends LinearOpMode {
         return value;
     }
     public void AUTONOMOUS_A() {
-        robotPower(-0.13f, 0.13f);
+        robotPower(-0.2f, 0.2f);
         telemetry.addLine("Autonomous A");
     }
     public void AUTONOMOUS_B() {
@@ -279,7 +291,7 @@ public class RightFinal extends LinearOpMode {
         telemetry.addLine("Autonomous B");
     }
     public void AUTONOMOUS_C() {
-        robotPower(0.13f, -0.13f);
+        robotPower(0.2f, -0.2f);
         telemetry.addLine("Autonomous C");
     }
     public void robotPower(float leftPower, float rightPower) {
@@ -289,10 +301,10 @@ public class RightFinal extends LinearOpMode {
         backLeft.setPower(leftPower);
     }
     private void AUTOFORWARD() {
-        robotPower(0.13f, 0.13f);
+        robotPower(0.25f, 0.25f);
     }
     private void AUTOBACKWARD() {
-        robotPower(-0.13f, -0.13f);
+        robotPower(-0.25f, -0.25f);
     }
     public void Lift(float power, int target) {
         Telemetry.Item liftPosition = telemetry.addData("Lift Position", lift.getCurrentPosition());
@@ -320,9 +332,9 @@ public class RightFinal extends LinearOpMode {
         telemetry.update();
         while(myPipeline.getRectArea() > 0)
             if (myPipeline.getRectArea() > 2000) {
-            if (myPipeline.getRectMidpointX() > 290) {
+            if (myPipeline.getRectMidpointX() > 100) {
                 AUTONOMOUS_C();
-            } else if (myPipeline.getRectMidpointX() > 270) {
+            } else if (myPipeline.getRectMidpointX() > 0) {
                 AUTONOMOUS_B();
                break;
             } else {
@@ -330,7 +342,7 @@ public class RightFinal extends LinearOpMode {
             }
         }
 
-        while (myPipeline.getRectMidpointX() < 285 && myPipeline.getRectMidpointX() > 260) {
+        while (myPipeline.getRectMidpointX() < 290 && myPipeline.getRectMidpointX() > 270) {
             if (myPipeline.getRectArea() > 15200) {
                 AUTOBACKWARD();
             } else if (myPipeline.getRectArea() < 14100) {

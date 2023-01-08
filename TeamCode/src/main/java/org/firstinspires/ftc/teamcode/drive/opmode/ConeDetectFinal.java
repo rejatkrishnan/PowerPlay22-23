@@ -53,14 +53,14 @@ public class ConeDetectFinal extends LinearOpMode {
     public static double borderLeftX = 0.0;   //fraction of pixels from the left side of the cam to skip
     public static double borderRightX = 0.0;   //fraction of pixels from the right of the cam to skip
     public static double borderTopY = 0.0;   //fraction of pixels from the top of the cam to skip
-    public static double borderBottomY = 0.0;   //fraction of pixels from the bottom of the cam to skip
+    public static double borderBottomY = 0.25;   //fraction of pixels from the bottom of the cam to skip
 
     private double lowerruntime = 0;
     private double upperruntime = 0;
 
     // Yellow Range
-    public static Scalar scalarLowerYCrCbCone = new Scalar(0.0, 100.0, 0.0);
-    public static Scalar scalarUpperYCrCbCone = new Scalar(255.0, 170.0, 120.0);
+    public static Scalar scalarLowerYCrCbCone = new Scalar(0.0, 174, 45);
+    public static Scalar scalarUpperYCrCbCone = new Scalar(255.0, 244, 111);
 
     @Override
     public void runOpMode() {
@@ -95,6 +95,7 @@ public class ConeDetectFinal extends LinearOpMode {
         telemetry.setAutoClear(true);
         Telemetry.Item liftPosition = telemetry.addData("Lift Position", lift.getCurrentPosition());
         liftPosition.setValue(lift.getCurrentPosition());
+        DigitalChannel digitalTouch;
         digitalTouch = hardwareMap.get(DigitalChannel.class, "sensor_digital");
         digitalTouch.setMode(DigitalChannel.Mode.INPUT);
         telemetry.update();
@@ -110,10 +111,6 @@ public class ConeDetectFinal extends LinearOpMode {
         drive.setPoseEstimate(startPose1);
 
 
-        TrajectorySequence traj1 = drive.trajectorySequenceBuilder(startPose1)
-                .lineToLinearHeading(new Pose2d(37.2,-45, Math.toRadians(-180)))
-                .lineToLinearHeading(new Pose2d(38,0, Math.toRadians(-180)))
-                .build();
 
 
 
@@ -130,14 +127,11 @@ public class ConeDetectFinal extends LinearOpMode {
         webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
             @Override
             public void onOpened() {
-                webcam.startStreaming(CAMERA_WIDTH, CAMERA_HEIGHT, OpenCvCameraRotation.UPSIDE_DOWN);
+                webcam.startStreaming(CAMERA_WIDTH, CAMERA_HEIGHT, OpenCvCameraRotation.UPRIGHT);
             }
 
             @Override
             public void onError(int errorCode) {
-                /*
-                 * This will be called if the camera could not be opened
-                 */
             }
         });
         // Only if you are using ftcdashboard
@@ -148,8 +142,6 @@ public class ConeDetectFinal extends LinearOpMode {
         telemetry.update();
         waitForStart();
 
-        drive.followTrajectorySequence(traj1);
-
         while (opModeIsActive()) {
             myPipeline.configureBorders(borderLeftX, borderRightX, borderTopY, borderBottomY);
             if (myPipeline.error) {
@@ -157,36 +149,35 @@ public class ConeDetectFinal extends LinearOpMode {
             }
             telemetry.addData("RectArea: ", myPipeline.getRectArea());
             telemetry.update();
-            if (myPipeline.getRectArea() > 2000) {
-                if (myPipeline.getRectMidpointX() > 290) {
+            if (myPipeline.getRectArea() > 100) {
+                if (myPipeline.getRectMidpointX() > 210) {
                     AUTONOMOUS_C();
-                } else if (myPipeline.getRectMidpointX() > 270) {
+                } else if (myPipeline.getRectMidpointX() > 180) {
                     AUTONOMOUS_B();
                     break;
                 } else {
                     AUTONOMOUS_A();
                 }
-
-                while (myPipeline.getRectMidpointX() < 285 && myPipeline.getRectMidpointX() > 260){
-                    if (myPipeline.getRectArea() > 15200) {
-                        AUTOBACKWARD();
-                    } else if (myPipeline.getRectArea() < 14100) {
-                        AUTOFORWARD();
-                    } else {
-                        AUTOSCORE();
+                if (myPipeline.getRectMidpointX() > 210 && myPipeline.getRectMidpointX() > 190) {
+                    if (digitalTouch.getState() == false) {
+                        grip(0.3f);
+                        robotPower(0.3f, 0.3f);
+                    }
+                    if (digitalTouch.getState() == true) {
+                        frontRight.setPower(0);
+                        backRight.setPower(0);
+                        frontLeft.setPower(0);
+                        backLeft.setPower(0);
+                        grip(0);
                         break;
                     }
-
+                }
+                    }
                 }
             }
-        }
-
-    }
 
     private void AUTOSCORE() {
-        robotPower(0, 0);
-
-
+        touchDrive(0.3f);
     }
     public Double inValues(double value, double min, double max) {
         if (value < min) {
@@ -198,7 +189,7 @@ public class ConeDetectFinal extends LinearOpMode {
         return value;
     }
     public void AUTONOMOUS_A() {
-        robotPower(-0.13f,0.13f);
+        robotPower(0.15f,-0.15f);
         telemetry.addLine("Autonomous A");
     }
 
@@ -208,7 +199,7 @@ public class ConeDetectFinal extends LinearOpMode {
     }
 
     public void AUTONOMOUS_C() {
-        robotPower(0.13f, -0.13f);
+        robotPower(-0.15f, 0.15f);
         telemetry.addLine("Autonomous C");
     }
     public void robotPower(float leftPower, float rightPower){
@@ -218,10 +209,28 @@ public class ConeDetectFinal extends LinearOpMode {
         backLeft.setPower(leftPower);
     }
     private void AUTOFORWARD() {
-        robotPower(0.13f, 0.13f);
+        robotPower(0.15f, 0.15f);
     }
 
     private void AUTOBACKWARD() {
-        robotPower(-0.13f, -0.13f);
+        robotPower(-0.15f, -0.15f);
+    }
+    private void touchDrive(float speed) {
+        while (digitalTouch.getState() == false)
+        frontRight.setPower(speed);
+        backRight.setPower(speed);
+        frontLeft.setPower(speed);
+        backLeft.setPower(speed);
+        grip(0.3f);
+        if (digitalTouch.getState() == true)
+        frontRight.setPower(0);
+        backRight.setPower(0);
+        frontLeft.setPower(0);
+        backLeft.setPower(0);
+        grip(0);
+    }
+    private void grip(float power) {
+        grip1.setPower(power);
+        grip2.setPower(-power);
     }
 }
